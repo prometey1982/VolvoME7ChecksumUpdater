@@ -62,72 +62,80 @@ namespace WindowsFormsApplication1
             UInt32 checksum;
             UInt32 currChecksum;
             UInt32 ComplimentcurrChecksum;
-            byte[] file_buffer = File.ReadAllBytes(filename);
             bool valid = true;
-            do
+            using (FileStream fsi1 = File.Open(filename, FileMode.Open, FileAccess.ReadWrite))
             {
-                // Get the checksum zone start address
-                start_addr = ((UInt32)file_buffer[buffer_index + 3] << 24)
-                           + ((UInt32)file_buffer[buffer_index + 2] << 16)
-                           + ((UInt32)file_buffer[buffer_index + 1] << 8)
-                           + (UInt32)file_buffer[buffer_index];
-                
-                // Get the checksum zone end address
-                end_addr = ((UInt32)file_buffer[buffer_index + 7] << 24)
-                         + ((UInt32)file_buffer[buffer_index + 6] << 16)
-                         + ((UInt32)file_buffer[buffer_index + 5] << 8)
-                         + (UInt32)file_buffer[buffer_index + 4];
-                // Calculate the checksum by 32bit sum from star_addr to end_addr
-                checksum = 0;
-                for (UInt32 addr = start_addr; addr < end_addr; addr += 2)
-                    checksum += ((UInt32)file_buffer[addr + 1] << 8) + (UInt32)file_buffer[addr];
+                BinaryReader reader = new BinaryReader(fsi1);
+                byte[] file_buffer = new byte[fsi1.Length];
+                reader.Read(file_buffer, 0, (int)fsi1.Length);
+                UInt32 max_buffer_index = 0x1FA00;
+                if (fsi1.Length == 1024 * 1024)
+                    max_buffer_index = 0x1FC00;
+                do
+                {
+                    // Get the checksum zone start address
+                    start_addr = ((UInt32)file_buffer[buffer_index + 3] << 24)
+                               + ((UInt32)file_buffer[buffer_index + 2] << 16)
+                               + ((UInt32)file_buffer[buffer_index + 1] << 8)
+                               + (UInt32)file_buffer[buffer_index];
+
+                    // Get the checksum zone end address
+                    end_addr = ((UInt32)file_buffer[buffer_index + 7] << 24)
+                             + ((UInt32)file_buffer[buffer_index + 6] << 16)
+                             + ((UInt32)file_buffer[buffer_index + 5] << 8)
+                             + (UInt32)file_buffer[buffer_index + 4];
+                    // Calculate the checksum by 32bit sum from star_addr to end_addr
+                    checksum = 0;
+                    for (UInt32 addr = start_addr; addr < end_addr; addr += 2)
+                        checksum += ((UInt32)file_buffer[addr + 1] << 8) + (UInt32)file_buffer[addr];
 
 
-                currChecksum = ((UInt32)file_buffer[buffer_index + 11] << 24)
-                           + ((UInt32)file_buffer[buffer_index + 10] << 16)
-                           + ((UInt32)file_buffer[buffer_index + 9] << 8)
-                           + (UInt32)file_buffer[buffer_index + 8];
-                ComplimentcurrChecksum = ((UInt32)file_buffer[buffer_index + 15] << 24)
-                           + ((UInt32)file_buffer[buffer_index + 14] << 16)
-                           + ((UInt32)file_buffer[buffer_index + 13] << 8)
-                           + (UInt32)file_buffer[buffer_index + 12];
+                    currChecksum = ((UInt32)file_buffer[buffer_index + 11] << 24)
+                               + ((UInt32)file_buffer[buffer_index + 10] << 16)
+                               + ((UInt32)file_buffer[buffer_index + 9] << 8)
+                               + (UInt32)file_buffer[buffer_index + 8];
+                    ComplimentcurrChecksum = ((UInt32)file_buffer[buffer_index + 15] << 24)
+                               + ((UInt32)file_buffer[buffer_index + 14] << 16)
+                               + ((UInt32)file_buffer[buffer_index + 13] << 8)
+                               + (UInt32)file_buffer[buffer_index + 12];
 
-                if (checksum != currChecksum)
-                {
-                    valid = false;
-                }
-                UInt32 complchecksum = ~checksum;
-                if (ComplimentcurrChecksum != complchecksum)
-                {
-                    valid = false;
-                }
-                if (!checkOnly)
-                {
-                    try
-                    {
-                        // Save the new checksum
-                        savebytetobinary((int)(buffer_index + 8), (byte)(checksum & 0x000000FF), filename);
-                        savebytetobinary((int)(buffer_index + 9), (byte)((checksum & 0x0000FF00) >> 8), filename);
-                        savebytetobinary((int)(buffer_index + 10), (byte)((checksum & 0x00FF0000) >> 16), filename);
-                        savebytetobinary((int)(buffer_index + 11), (byte)((checksum & 0xFF000000) >> 24), filename);
-                        // Save the complement of the new checksum
-                        checksum = ~checksum;
-                        savebytetobinary((int)(buffer_index + 12), (byte)(checksum & 0x000000FF), filename);
-                        savebytetobinary((int)(buffer_index + 13), (byte)((checksum & 0x0000FF00) >> 8), filename);
-                        savebytetobinary((int)(buffer_index + 14), (byte)((checksum & 0x00FF0000) >> 16), filename);
-                        savebytetobinary((int)(buffer_index + 15), (byte)((checksum & 0xFF000000) >> 24), filename);
-                        valid = true;
-                    }
-                    catch (Exception e)
+                    if (checksum != currChecksum)
                     {
                         valid = false;
-                        MessageBox.Show(e.Message.ToString(), this.Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        break;
                     }
+                    UInt32 complchecksum = ~checksum;
+                    if (ComplimentcurrChecksum != complchecksum)
+                    {
+                        valid = false;
+                    }
+                    if (!checkOnly)
+                    {
+                        try
+                        {
+                            // Save the new checksum
+                            savebytetobinary(fsi1, (int)(buffer_index + 8), (byte)(checksum & 0x000000FF), filename);
+                            savebytetobinary(fsi1, (int)(buffer_index + 9), (byte)((checksum & 0x0000FF00) >> 8), filename);
+                            savebytetobinary(fsi1, (int)(buffer_index + 10), (byte)((checksum & 0x00FF0000) >> 16), filename);
+                            savebytetobinary(fsi1, (int)(buffer_index + 11), (byte)((checksum & 0xFF000000) >> 24), filename);
+                            // Save the complement of the new checksum
+                            checksum = ~checksum;
+                            savebytetobinary(fsi1, (int)(buffer_index + 12), (byte)(checksum & 0x000000FF), filename);
+                            savebytetobinary(fsi1, (int)(buffer_index + 13), (byte)((checksum & 0x0000FF00) >> 8), filename);
+                            savebytetobinary(fsi1, (int)(buffer_index + 14), (byte)((checksum & 0x00FF0000) >> 16), filename);
+                            savebytetobinary(fsi1, (int)(buffer_index + 15), (byte)((checksum & 0xFF000000) >> 24), filename);
+                            valid = true;
+                        }
+                        catch (Exception e)
+                        {
+                            valid = false;
+                            MessageBox.Show(e.Message.ToString(), this.Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            break;
+                        }
+                    }
+                    buffer_index += 0x10;
                 }
-                buffer_index += 0x10;
+                while (buffer_index < max_buffer_index);
             }
-            while (buffer_index < 0x1FA00);
             return valid;
         }
 
@@ -135,16 +143,11 @@ namespace WindowsFormsApplication1
         //Code by Dilemma
         //http://trionic.mobixs.eu/
         //
-        public void savebytetobinary(int address, byte data, string filename)
+        public void savebytetobinary(FileStream fsi1, int address, byte data, string filename)
         {
-            FileStream fsi1 = File.OpenWrite(filename);
             BinaryWriter bw1 = new BinaryWriter(fsi1);
             fsi1.Position = address;
             bw1.Write((byte)data);
-            fsi1.Flush();
-            bw1.Close();
-            fsi1.Close();
-            fsi1.Dispose();
         }
 
         private void openFileDialog_FileOk(object sender, CancelEventArgs e)
