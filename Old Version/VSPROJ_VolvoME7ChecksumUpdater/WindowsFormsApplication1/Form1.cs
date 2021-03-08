@@ -5,6 +5,7 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
 
@@ -37,6 +38,7 @@ namespace WindowsFormsApplication1
 
         private void cmdOpen_Click(object sender, EventArgs e)
         {
+            openFileDialog.InitialDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             openFileDialog.ShowDialog();
         }
 
@@ -84,6 +86,8 @@ namespace WindowsFormsApplication1
                              + ((UInt32)file_buffer[buffer_index + 6] << 16)
                              + ((UInt32)file_buffer[buffer_index + 5] << 8)
                              + (UInt32)file_buffer[buffer_index + 4];
+                    if (start_addr >= file_buffer.Length || end_addr >= file_buffer.Length)
+                        break;
                     // Calculate the checksum by 32bit sum from star_addr to end_addr
                     checksum = 0;
                     for (UInt32 addr = start_addr; addr < end_addr; addr += 2)
